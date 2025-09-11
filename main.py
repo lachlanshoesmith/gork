@@ -11,43 +11,70 @@ HOSTS: str | None = os.environ["GORK_HOSTS"]
 intents = discord.Intents.default()
 intents.message_content = True
 
+
 class Gork(discord.Client):
     def __init__(self, db: Valkey, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.db = db
 
     async def on_ready(self):
-        await self.db.connect()
+        try:
+            await self.db.connect()
+        except Exception as exc:
+            print("Failed to connect to Valkey:", exc, file=sys.stderr)
+            sys.exit(1)
 
-        print(f'gork up. aka {self.user}')
+        print(f"gork up. aka {self.user}")
 
-    def try_store_message(message: discord.Message) -> None:
-        if random.randint(0,4) != 0:
-            return        
-
-    
-    async def on_message(self, message: discord.Message):
-        if self.user.mentioned_in(message):
-            print(f'message from {message.author}: {message.content}')
+    async def get_message(self, guild_id: int):
+        msgs_count = self.db.llen(guild_id)
+        if msgs_count < 5:
+            return "gork still listening, learning..."
         else:
-            self.try_store_message(message)
+            msg_i = random.randint(0, msgs_count - 1)
+            msg = await self.db.lrange(guild_id, msg_i, msg_i)
+            print(msg)
+            return msg
+
+    async def try_store_message(self, guild_id: int, message: discord.Message) -> None:
+        if random.randint(0, 4) != 0:
+            await self.db.rpush(guild_id, message.content)
+            await self.db.ltrim(guild_id, 0, 200)
+
+    async def on_message(self, message: discord.Message):
+        if message.guild is None:
+            return
+
+        guild_id = message.guild.id
+
+        if self.user.mentioned_in(message):
+            content = await self.get_message(guild_id)
+            await message.channel.send(content, reference=message)
+        else:
+            await self.try_store_message(guild_id, message)
+
 
 def main():
     # TODO: change to proper config...
+    if HOSTS is None:
+        print("Error: HOSTS environment variable not specified.", file=sys.stderr)
+        sys.exit(1)
+    assert HOSTS is not None
+
     hosts_list = ast.literal_eval(HOSTS)
     hosts_list = [(host, int(port)) for (host, port) in hosts_list]
-
 
     db = Valkey(hosts=hosts_list)
 
     gork = Gork(db, intents=intents)
 
     if TOKEN is None:
-        print('Error: GORK_TOKEN environment variable not specified.')
+        print("Error: GORK_TOKEN environment variable not specified.", file=sys.stderr)
         sys.exit(1)
+    assert TOKEN is not None
 
     gork.run(TOKEN)
 
+
 if __name__ == "__main__":
     main()
-
