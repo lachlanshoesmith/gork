@@ -1,15 +1,7 @@
 import discord
-import os
 import sys
 import random
-import ast
-from db import Valkey
-
-TOKEN: str | None = os.environ["GORK_TOKEN"]
-HOSTS: str | None = os.environ["GORK_HOSTS"]
-
-intents = discord.Intents.default()
-intents.message_content = True
+from .db import Valkey
 
 
 class Gork(discord.Client):
@@ -53,29 +45,3 @@ class Gork(discord.Client):
             await message.channel.send(content, reference=message)
         else:
             await self.try_store_message(guild_id, message)
-
-
-def main():
-    # TODO: change to proper config...
-    if HOSTS is None:
-        print("Error: HOSTS environment variable not specified.", file=sys.stderr)
-        sys.exit(1)
-    assert HOSTS is not None
-
-    hosts_list = ast.literal_eval(HOSTS)
-    hosts_list = [(host, int(port)) for (host, port) in hosts_list]
-
-    db = Valkey(hosts=hosts_list)
-
-    gork = Gork(db, intents=intents)
-
-    if TOKEN is None:
-        print("Error: GORK_TOKEN environment variable not specified.", file=sys.stderr)
-        sys.exit(1)
-    assert TOKEN is not None
-
-    gork.run(TOKEN)
-
-
-if __name__ == "__main__":
-    main()

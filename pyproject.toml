@@ -1,7 +1,7 @@
 [project]
 name = "gork"
 version = "0.1.0"
-description = "Add your description here"
+description = "an incredibly stupid 'llm' for discord"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -9,9 +9,15 @@ dependencies = [
     "valkey-glide>=2.0.1",
 ]
 
+[project.scripts]
+gork = "gork:main"
+
 [dependency-groups]
 dev = [
     "ruff>=0.13.0",
     "ty>=0.0.1a20",
 ]
 
+[build-system]
+requires = ["uv_build>=0.8.17,<0.9.0"]
+build-backend = "uv_build"
