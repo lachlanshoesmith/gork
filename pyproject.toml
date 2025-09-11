@@ -9,9 +9,6 @@ dependencies = [
     "valkey-glide>=2.0.1",
 ]
 
-[project.scripts]
-gork = "gork:main"
-
 [dependency-groups]
 dev = [
     "ruff>=0.13.0",

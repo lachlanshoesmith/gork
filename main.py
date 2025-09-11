@@ -1,7 +1,7 @@
 import os
 import ast
-from .bot import Gork
-from .db import Valkey
+from bot import Gork
+from db import Valkey
 from discord import Intents
 
 

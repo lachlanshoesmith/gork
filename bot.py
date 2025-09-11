@@ -1,7 +1,7 @@
 import discord
 import sys
 import random
-from .db import Valkey
+from db import Valkey
 
 
 class Gork(discord.Client):
