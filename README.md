@@ -1,6 +1,7 @@
 # gork
 
-stupid discord bot that regurgitates messages its seen before
+stupid discord bot that regurgitates messages its seen before.
+
 uses valkey to store data. note that valkey glide does not support redis >=8.0.
 
 ## dev
@@ -11,4 +12,5 @@ uses valkey to store data. note that valkey glide does not support redis >=8.0.
 
 ## prod
 
-i recommend using the provided `docker-compose.yml`, subbing in your env vars, to orchestrate both valkey and gork.
+i recommend using the provided `docker-compose.yml`, subbing in your env vars (or using a .env).
+this will orchestrate both valkey and gork.
