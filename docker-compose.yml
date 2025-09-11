@@ -1,0 +1,25 @@
+version: '3.9'
+
+services:
+  valkey:
+    image: valkey/valkey:latest
+    container_name: valkey
+    ports:
+      - '6379:6379'
+    environment:
+      - VALKEY_BIND=0.0.0.0:6379
+    healthcheck:
+      test: ['CMD', 'nc', '-z', 'localhost', '6379']
+      interval: 5s
+      retries: 5
+
+  gork:
+    build: .
+    container_name: gork
+    depends_on:
+      valkey:
+        condition: service_healthy
+    environment:
+      - GORK_TOKEN=
+      - GORK_HOSTS='[("valkey", 6379)]'
+    restart: unless-stopped
