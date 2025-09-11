@@ -21,7 +21,7 @@ class Gork(discord.Client):
     async def get_message(self, guild_id: str):
         msgs_count = await self.db.llen(guild_id)
         if msgs_count < 100:
-            return "gork still listening, learning..."
+            return f"gork still listening, learning... check back in min. {100 - msgs_count} messages from now lol"
         else:
             msg_i = random.randint(0, msgs_count - 1)
             msgs = await self.db.lrange(guild_id, msg_i, msg_i)
