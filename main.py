@@ -26,26 +26,27 @@ class Gork(discord.Client):
 
         print(f"gork up. aka {self.user}")
 
-    async def get_message(self, guild_id: int):
-        msgs_count = self.db.llen(guild_id)
-        if msgs_count < 5:
+    async def get_message(self, guild_id: str):
+        msgs_count = await self.db.llen(guild_id)
+        if msgs_count < 100:
             return "gork still listening, learning..."
         else:
             msg_i = random.randint(0, msgs_count - 1)
-            msg = await self.db.lrange(guild_id, msg_i, msg_i)
+            msgs = await self.db.lrange(guild_id, msg_i, msg_i)
+            msg: str = msgs[0].decode("utf-8")
             print(msg)
             return msg
 
-    async def try_store_message(self, guild_id: int, message: discord.Message) -> None:
+    async def try_store_message(self, guild_id: str, message: discord.Message) -> None:
         if random.randint(0, 4) != 0:
             await self.db.rpush(guild_id, message.content)
-            await self.db.ltrim(guild_id, 0, 200)
+            await self.db.ltrim(guild_id, 0, 300)
 
     async def on_message(self, message: discord.Message):
         if message.guild is None:
             return
 
-        guild_id = message.guild.id
+        guild_id = str(message.guild.id)
 
         if self.user.mentioned_in(message):
             content = await self.get_message(guild_id)

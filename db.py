@@ -22,13 +22,17 @@ class Valkey:
         set_result = await self.client.set(key, val)
         print(set_result)
 
-    async def lpush(self, key: str, val: list[str]):
+    async def lpush(self, key: str, val: list[str] | str):
         self.ensure_client()
+        if not isinstance(val, list):
+            val = [val]
         push_result = await self.client.lpush(key, val)
         print(push_result)
 
-    async def rpush(self, key: str, val: list[str]):
+    async def rpush(self, key: str, val: list[str] | str):
         self.ensure_client()
+        if not isinstance(val, list):
+            val = [val]
         push_result = await self.client.rpush(key, val)
         print(push_result)
 
