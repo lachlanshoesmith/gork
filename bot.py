@@ -32,7 +32,7 @@ class Gork(discord.Client):
     async def try_store_message(self, guild_id: str, message: discord.Message) -> None:
         if random.randint(0, 4) != 0:
             await self.db.rpush(guild_id, message.content)
-            await self.db.ltrim(guild_id, 0, 300)
+            await self.db.ltrim(guild_id, 1, 300)
 
     async def on_message(self, message: discord.Message):
         if message.guild is None:
