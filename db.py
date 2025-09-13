@@ -55,3 +55,26 @@ class Valkey:
         self.ensure_client()
         get_result = await self.client.get(key)
         print(get_result)
+
+    async def sadd(self, key: str, val: list[str] | str):
+        self.ensure_client()
+        if not isinstance(val, list):
+            val = [val]
+        push_result = await self.client.sadd(key, val)
+        print(push_result)
+
+    async def scard(self, key: str):
+        self.ensure_client()
+        cardinality = await self.client.scard(key)
+        return cardinality
+
+    async def spop(self, key: str, count = 1):
+        self.ensure_client()
+        pop_result = await self.client.spop(key, count)
+        return pop_result
+
+    async def srandmember(self, key: str, count = 1):
+        self.ensure_client()
+        val = await self.client.srandmember(key, count)
+        return val
+        
