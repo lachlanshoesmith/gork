@@ -30,7 +30,7 @@ class Gork(discord.Client):
 
     async def try_store_message(self, guild_id: str, message: discord.Message) -> None:
         msg_content = message.content.strip()
-        if random.randint(0, 4) != 0:
+        if random.randint(0, 4) == 0:
             msgs_count = await self.db.scard(guild_id)
             if msgs_count >= 300:
                 await self.db.scard(guild_id)
