@@ -7,6 +7,7 @@ from discord import Intents
 
 TOKEN: str = os.environ["GORK_TOKEN"]
 HOSTS: str = os.environ["GORK_HOSTS"]
+PERMITTED_CHANNELS: str = os.getenv("GORK_PERMITTED_CHANNELS", default=None)
 
 intents = Intents.default()
 intents.message_content = True
@@ -16,9 +17,10 @@ def main():
     # TODO: change to proper config...
     hosts_list = ast.literal_eval(HOSTS)
     hosts_list = [(host, int(port)) for (host, port) in hosts_list]
+    permitted_channels = ast.literal_eval(PERMITTED_CHANNELS)
     db = Valkey(hosts=hosts_list)
 
-    gork = Gork(db, intents=intents)
+    gork = Gork(db, permitted_channels=permitted_channels, intents=intents)
     gork.run(TOKEN)
 
 

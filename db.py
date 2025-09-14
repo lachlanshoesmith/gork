@@ -75,6 +75,6 @@ class Valkey:
 
     async def srandmember(self, key: str, count = 1):
         self.ensure_client()
-        val = await self.client.srandmember(key, count)
+        val = await self.client.srandmember_count(key, count)
         return val
         

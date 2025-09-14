@@ -8,6 +8,7 @@ class Gork(discord.Client):
     def __init__(self, db: Valkey, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.db = db
+        self.permitted_channels = kwargs.get("permitted_channels", None)
 
     async def on_ready(self):
         try:
@@ -46,4 +47,6 @@ class Gork(discord.Client):
             content = await self.get_message(guild_id)
             await message.channel.send(content, reference=message)
         else:
+            if self.permitted_channels is not None and message.channel.id not in self.permitted_channels:
+                return
             await self.try_store_message(guild_id, message)
