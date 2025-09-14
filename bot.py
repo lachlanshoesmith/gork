@@ -48,5 +48,6 @@ class Gork(discord.Client):
             await message.channel.send(content, reference=message)
         else:
             if self.permitted_channels is not None and message.channel.id not in self.permitted_channels:
+                print(f"Cannot write messages from channel {message.channel.id} ({message.channel.name})")
                 return
             await self.try_store_message(guild_id, message)

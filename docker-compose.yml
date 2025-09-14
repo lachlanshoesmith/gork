@@ -18,4 +18,5 @@ services:
     environment:
       - GORK_TOKEN=${GORK_TOKEN}
       - GORK_HOSTS=${GORK_HOSTS}
+      - GORK_PERMITTED_CHANNELS=${GORK_PERMITTED_CHANNELS}
     restart: unless-stopped

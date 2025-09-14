@@ -17,7 +17,10 @@ def main():
     # TODO: change to proper config...
     hosts_list = ast.literal_eval(HOSTS)
     hosts_list = [(host, int(port)) for (host, port) in hosts_list]
-    permitted_channels = ast.literal_eval(PERMITTED_CHANNELS)
+    if PERMITTED_CHANNELS:
+        permitted_channels = ast.literal_eval(PERMITTED_CHANNELS)
+    else:
+        permitted_channels = None
     db = Valkey(hosts=hosts_list)
 
     gork = Gork(db, permitted_channels=permitted_channels, intents=intents)
