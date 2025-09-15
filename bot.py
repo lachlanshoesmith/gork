@@ -45,7 +45,15 @@ class Gork(discord.Client):
 
         if self.user.mentioned_in(message):
             content = await self.get_message(guild_id)
-            await message.channel.send(content, reference=message)
+            await message.channel.send(
+                    content, 
+                    reference=message, 
+                    allowed_mentions=discord.AllowedMentions(
+                        users=False, 
+                        everyone=False, 
+                        roles=False, 
+                        replied_user=True)
+                    )
         else:
             if self.permitted_channels is not None and message.channel.id not in self.permitted_channels:
                 print(f"Cannot write messages from channel {message.channel.id} ({message.channel.name})")
