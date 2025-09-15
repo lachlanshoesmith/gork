@@ -19,4 +19,5 @@ services:
       - GORK_TOKEN=${GORK_TOKEN}
       - GORK_HOSTS=${GORK_HOSTS}
       - GORK_PERMITTED_CHANNELS=${GORK_PERMITTED_CHANNELS}
+      - PYTHONUNBUFFERED=1
     restart: unless-stopped

@@ -33,29 +33,37 @@ class Gork(discord.Client):
         msg_content = message.content.strip()
         if random.randint(0, 4) == 0:
             msgs_count = await self.db.scard(guild_id)
-            if msgs_count >= 300:
-                await self.db.scard(guild_id)
+            if msgs_count >= 500:
+                await self.db.spop(guild_id)
             await self.db.sadd(guild_id, msg_content)
+
+    def ensure_permissions(self, channel: discord.TextChannel) -> bool:
+        return (
+            self.permitted_channels is not None
+            and channel.id not in self.permitted_channels
+        )
 
     async def on_message(self, message: discord.Message):
         if message.guild is None:
             return
 
-        guild_id = str(message.guild.id)
+        guild_id = f"guild:{message.guild.id}:messages"
 
         if self.user.mentioned_in(message):
+            if message.type == discord.MessageType.reply:
+                if not self.ensure_permissions(message.channel):
+                    return
+                await self.try_store_message(guild_id, message)
+
             content = await self.get_message(guild_id)
             await message.channel.send(
-                    content, 
-                    reference=message, 
-                    allowed_mentions=discord.AllowedMentions(
-                        users=False, 
-                        everyone=False, 
-                        roles=False, 
-                        replied_user=True)
-                    )
+                content,
+                reference=message,
+                allowed_mentions=discord.AllowedMentions(
+                    users=False, everyone=False, roles=False, replied_user=True
+                ),
+            )
         else:
-            if self.permitted_channels is not None and message.channel.id not in self.permitted_channels:
-                print(f"Cannot write messages from channel {message.channel.id} ({message.channel.name})")
+            if not self.ensure_permissions(message.channel):
                 return
             await self.try_store_message(guild_id, message)

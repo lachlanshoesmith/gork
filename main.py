@@ -7,7 +7,7 @@ from discord import Intents
 
 TOKEN: str = os.environ["GORK_TOKEN"]
 HOSTS: str = os.environ["GORK_HOSTS"]
-PERMITTED_CHANNELS: str = os.getenv("GORK_PERMITTED_CHANNELS", default=None)
+PERMITTED_CHANNELS: str | None = os.getenv("GORK_PERMITTED_CHANNELS", default=None)
 
 intents = Intents.default()
 intents.message_content = True
