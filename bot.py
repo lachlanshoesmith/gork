@@ -43,7 +43,7 @@ class Gork(discord.Client):
     def ensure_permissions(self, channel: discord.TextChannel) -> bool:
         return (
             self.permitted_channels is not None
-            and channel.id not in self.permitted_channels
+            and channel.id in self.permitted_channels
         )
 
     def ensure_maintenance_guild(self, guild_id: int):
