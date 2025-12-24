@@ -68,13 +68,17 @@ class Valkey:
         cardinality = await self.client.scard(key)
         return cardinality
 
-    async def spop(self, key: str, count = 1):
+    async def spop(self, key: str, count=1):
         self.ensure_client()
-        pop_result = await self.client.spop(key, count)
+        if count < 1:
+            raise ValueError("Cannot pop less than 1 element")
+        if count > 1:
+            pop_result = await self.client.spop_count(key, count)
+        else:
+            pop_result = await self.client.spop(key)
         return pop_result
 
-    async def srandmember(self, key: str, count = 1):
+    async def srandmember(self, key: str, count=1):
         self.ensure_client()
         val = await self.client.srandmember_count(key, count)
         return val
-        
