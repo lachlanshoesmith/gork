@@ -23,3 +23,7 @@ services:
       - GORK_MAINTENANCE_MODE=${GORK_MAINTENANCE_MODE:-0}
       - PYTHONUNBUFFERED=${PYTHONUNBUFFERED:-0}
     restart: unless-stopped
+    develop:
+      watch:
+        - action: rebuild
+          path: ./src/gork
