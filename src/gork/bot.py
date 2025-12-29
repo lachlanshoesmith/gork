@@ -30,15 +30,27 @@ class Gork(discord.Client):
             msg: str = msgs[0].decode("utf-8")
             return msg
 
-    async def try_store_message(
-        self, guild_id_key: str, message: discord.Message
-    ) -> None:
+    async def delete_message(self, guild_id: int, message_id: int):
+        b = self.db.create_batch()
+        msg_prefix = f"message:{message_id}"
+        guild_prefix = f"guild:{guild_id}"
+        b.delete(msg_prefix)
+        b.delete(f"{msg_prefix}:reactions")
+        b.srem(guild_prefix, message_id)
+        # for mood in moods, delete...
+        self.db.execute_batch(b)
+
+    async def try_store_message(self, guild_id: int, message: discord.Message) -> None:
+        guild_id_key = f"guild:{guild_id}"
+
         msg_content = message.content.strip()
         if random.randint(0, 4) == 0:
             msgs_count = await self.db.scard(guild_id_key)
             if msgs_count >= 500:
-                await self.db.spop(guild_id_key)
-            await self.db.sadd(guild_id_key, msg_content)
+                msg_to_del = await self.db.srandmember(guild_id_key)
+                self.delete_message(guild_id, msg_to_del)
+            # TODO: Store messages in more places. And store not just the ID but also the content of the message given by msg_content.
+            await self.db.sadd(guild_id_key, message.id)
 
     def ensure_permissions(self, channel: discord.TextChannel) -> bool:
         return (
@@ -49,21 +61,24 @@ class Gork(discord.Client):
     def ensure_maintenance_guild(self, guild_id: int):
         return self.maintenance_guilds and guild_id in self.maintenance_guilds
 
+    def strip_mentions(self, message: discord.Message):
+        message.content = message.content.replace("<@1415548973715820645>", "").strip()
+        return message
+
     async def on_message(self, message: discord.Message):
         if message.guild is None:
             return
 
         guild_id: int = message.guild.id
-        guild_id_key = f"guild:{guild_id}:messages"
+        guild_id_key = f"guild:{guild_id}"
 
         if self.maintenance_mode and not self.ensure_maintenance_guild(guild_id):
             return
 
         if self.user.mentioned_in(message):
-            if message.type == discord.MessageType.reply:
-                if self.ensure_permissions(message.channel) or self.maintenance_mode:
-                    await self.try_store_message(guild_id_key, message)
-
+            message = self.strip_mentions(message)
+            if self.ensure_permissions(message.channel) or self.maintenance_mode:
+                await self.try_store_message(guild_id, message)
             content = await self.get_message(guild_id_key)
             await message.channel.send(
                 content,

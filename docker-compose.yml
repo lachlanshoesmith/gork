@@ -8,6 +8,8 @@ services:
       test: ['CMD-SHELL', 'valkey-cli ping || exit 1']
       interval: 5s
       retries: 5
+    ports:
+      - 6379:6379
 
   gork:
     build: .

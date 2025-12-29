@@ -1,4 +1,4 @@
-from glide import GlideClient, GlideClientConfiguration, NodeAddress
+from glide import GlideClient, GlideClientConfiguration, NodeAddress, Batch
 
 
 class Valkey:
@@ -82,3 +82,14 @@ class Valkey:
         self.ensure_client()
         val = await self.client.srandmember_count(key, count)
         return val
+
+    async def delete(self, key: str, *args: str):
+        keys = list(args).append(key)
+        amount_deleted = await self.client.delete(keys)
+        return amount_deleted
+
+    async def create_batch(self, is_atomic=True) -> Batch:
+        return self.client.Batch(is_atomic=is_atomic)
+
+    async def execute_batch(self, batch: Batch):
+        await self.client.exec(batch)
