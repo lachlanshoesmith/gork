@@ -2,15 +2,10 @@ import discord
 import sys
 import random
 from gork.db import Valkey
-from gork.words import get_substantial_words
+from glide.async_commands.sorted_set import RangeByIndex
+from gork.words import get_substantial_words, TONES, determine_tone
 
-TONES: dict[str, set[str]] = {
-    "happy": {"😀", "😃", "😄", "😁", "🙂", "☺️", "😺"},
-    "sad": {"☹️", "😥", "😢", "😭", "🙁", "😦", "😿"},
-    "surprising": {"🤯", "😲", "😯", "🙀", "😱", "😯"},
-    "amusing": {"😆", "🤣", "😂", "😹", "💀", "😸"},
-    "enraging": {"😡", "😠", "🤬", "😾"},
-}
+MIN_MESSAGES = 10
 
 
 class Gork(discord.Client):
@@ -30,14 +25,22 @@ class Gork(discord.Client):
 
         print(f"gork up. aka {self.user}")
 
-    async def _get_random_message(self, guild_id_key: str):
-        msgs_count = await self.db.scard(guild_id_key)
-        if msgs_count < 100:
-            return f"gork still listening, learning... check back in min. {100 - msgs_count} messages from now lol"
+    async def _get_random_message(self, guild_id: int, tone: str | None):
+        guild_messages_key = f"guild:{guild_id}:messages"
+        msgs_count = await self.db.scard(guild_messages_key)
+        if msgs_count < MIN_MESSAGES:
+            return f"gork still listening, learning... check back in min. {MIN_MESSAGES - msgs_count} messages from now lol"
         else:
-            msgs = await self.db.srandmember(guild_id_key)
-            msg: str = msgs[0].decode("utf-8")
-            return msg
+            if not tone:
+                msgs = await self.db.srandmember(guild_messages_key)
+            else:
+                msgs = await self.db.zrange(
+                    f"{guild_messages_key}:tone:{tone}", RangeByIndex(0, 0), True
+                )
+
+            msg_id: str = msgs[0].decode("utf-8")
+            msg = await self.db.get(f"message:{msg_id}")
+            return msg.decode("utf-8")
 
     async def _delete_message(self, guild_id: int, message_id: int):
         b = self.db.create_batch()
@@ -103,7 +106,6 @@ class Gork(discord.Client):
             return
 
         guild_id: int = message.guild.id
-        guild_id_key = f"guild:{guild_id}"
 
         if self.maintenance_mode and not self._ensure_maintenance_guild(guild_id):
             return
@@ -111,9 +113,11 @@ class Gork(discord.Client):
             return
 
         if self.user.mentioned_in(message):
+            tone = await determine_tone(guild_id, message.content, self.db)
+
             message: discord.Message = self._strip_mentions(message)
             await self._try_store_message(guild_id, message)
-            content = await self._get_random_message(guild_id_key)
+            content = await self._get_random_message(guild_id, tone)
             await message.channel.send(
                 content,
                 reference=message,

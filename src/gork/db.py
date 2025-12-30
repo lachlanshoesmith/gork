@@ -64,7 +64,7 @@ class Valkey:
     async def get(self, key):
         self.ensure_client()
         get_result = await self.client.get(key)
-        print(get_result)
+        return get_result
 
     async def sadd(self, key: str, val: list[str] | str):
         self.ensure_client()
@@ -121,3 +121,7 @@ class Valkey:
         self.ensure_client()
         rnge = await self.client.zrange(key, range_query, reverse)
         return rnge
+
+    async def zscore(self, key: TEncodable, member: TEncodable):
+        self.ensure_client()
+        return await self.client.zscore(key, member)
