@@ -33,14 +33,18 @@ class Gork(discord.Client):
         else:
             if not tone:
                 msgs = await self.db.srandmember(guild_messages_key)
+
             else:
                 msgs = await self.db.zrange(
                     f"{guild_messages_key}:tone:{tone}", RangeByIndex(0, 0), True
                 )
-
+                msg_id: str = msgs[0].decode("utf-8")
+                score = await self.db.zscore(
+                    f"{guild_messages_key}:tone:{tone}", msg_id
+                )
+                if score < 3:
+                    msgs = await self.db.srandmember(guild_messages_key)
             msg_id: str = msgs[0].decode("utf-8")
-            score = await self.db.zscore(f"{guild_messages_key}:tone:{tone}", msg_id)
-            print(score)
             msg = await self.db.get(f"message:{msg_id}")
             return msg.decode("utf-8")
 
