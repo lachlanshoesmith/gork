@@ -99,13 +99,13 @@ class Valkey:
         amount_deleted = await self.client.delete(keys)
         return amount_deleted
 
-    async def create_batch(self, is_atomic=True) -> Batch:
+    def create_batch(self, is_atomic=True) -> Batch:
         self.ensure_client()
-        return self.client.Batch(is_atomic=is_atomic)
+        return Batch(is_atomic=is_atomic)
 
-    async def execute_batch(self, batch: Batch):
+    async def execute_batch(self, batch: Batch, raise_on_error=True):
         self.ensure_client()
-        await self.client.exec(batch)
+        await self.client.exec(batch, raise_on_error)
 
     async def zadd(self, key: TEncodable, members_scores: Mapping[TEncodable, float]):
         self.ensure_client()
