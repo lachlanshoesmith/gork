@@ -1,8 +1,10 @@
 import os
 import ast
-from bot import Gork
-from db import Valkey
+
 from discord import Intents
+
+from gork.bot import Gork
+from gork.db import Valkey
 
 
 TOKEN: str = os.environ["GORK_TOKEN"]
@@ -30,6 +32,7 @@ def main():
 
     if maintenance_mode == 1:
         MAINTENANCE_MODE = True
+        print("gork is in maintenance mode")
     else:
         MAINTENANCE_MODE = False
 
@@ -43,7 +46,3 @@ def main():
         intents=intents,
     )
     gork.run(TOKEN)
-
-
-if __name__ == "__main__":
-    main()

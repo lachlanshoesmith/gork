@@ -8,6 +8,8 @@ services:
       test: ['CMD-SHELL', 'valkey-cli ping || exit 1']
       interval: 5s
       retries: 5
+    ports:
+      - 6379:6379
 
   gork:
     build: .
@@ -23,3 +25,7 @@ services:
       - GORK_MAINTENANCE_MODE=${GORK_MAINTENANCE_MODE:-0}
       - PYTHONUNBUFFERED=${PYTHONUNBUFFERED:-0}
     restart: unless-stopped
+    develop:
+      watch:
+        - action: rebuild
+          path: ./src/gork

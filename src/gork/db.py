@@ -1,4 +1,14 @@
-from glide import GlideClient, GlideClientConfiguration, NodeAddress
+from glide import (
+    GlideClient,
+    GlideClientConfiguration,
+    NodeAddress,
+    Batch,
+    TEncodable,
+    RangeByIndex,
+    RangeByLex,
+    RangeByScore,
+)
+from typing import Mapping, Union
 
 
 class Valkey:
@@ -54,7 +64,7 @@ class Valkey:
     async def get(self, key):
         self.ensure_client()
         get_result = await self.client.get(key)
-        print(get_result)
+        return get_result
 
     async def sadd(self, key: str, val: list[str] | str):
         self.ensure_client()
@@ -68,13 +78,50 @@ class Valkey:
         cardinality = await self.client.scard(key)
         return cardinality
 
-    async def spop(self, key: str, count = 1):
+    async def spop(self, key: str, count=1):
         self.ensure_client()
-        pop_result = await self.client.spop(key, count)
+        if count < 1:
+            raise ValueError("Cannot pop less than 1 element")
+        if count > 1:
+            pop_result = await self.client.spop_count(key, count)
+        else:
+            pop_result = await self.client.spop(key)
         return pop_result
 
-    async def srandmember(self, key: str, count = 1):
+    async def srandmember(self, key: str, count=1):
         self.ensure_client()
         val = await self.client.srandmember_count(key, count)
         return val
-        
+
+    async def delete(self, key: str, *args: str):
+        self.ensure_client()
+        keys = list(args).append(key)
+        amount_deleted = await self.client.delete(keys)
+        return amount_deleted
+
+    def create_batch(self, is_atomic=True) -> Batch:
+        self.ensure_client()
+        return Batch(is_atomic=is_atomic)
+
+    async def execute_batch(self, batch: Batch, raise_on_error=True):
+        self.ensure_client()
+        await self.client.exec(batch, raise_on_error)
+
+    async def zadd(self, key: TEncodable, members_scores: Mapping[TEncodable, float]):
+        self.ensure_client()
+        elems_added = await self.client.zadd(key, members_scores)
+        return elems_added
+
+    async def zrange(
+        self,
+        key: TEncodable,
+        range_query: Union[RangeByIndex, RangeByLex, RangeByScore],
+        reverse: bool = False,
+    ):
+        self.ensure_client()
+        rnge = await self.client.zrange(key, range_query, reverse)
+        return rnge
+
+    async def zscore(self, key: TEncodable, member: TEncodable):
+        self.ensure_client()
+        return await self.client.zscore(key, member)
