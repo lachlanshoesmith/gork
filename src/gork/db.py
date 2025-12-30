@@ -30,26 +30,26 @@ class Valkey:
     async def set(self, key: str, val: str):
         self.ensure_client()
         set_result = await self.client.set(key, val)
-        print(set_result)
+        return set_result
 
     async def lpush(self, key: str, val: list[str] | str):
         self.ensure_client()
         if not isinstance(val, list):
             val = [val]
         push_result = await self.client.lpush(key, val)
-        print(push_result)
+        return push_result
 
     async def rpush(self, key: str, val: list[str] | str):
         self.ensure_client()
         if not isinstance(val, list):
             val = [val]
         push_result = await self.client.rpush(key, val)
-        print(push_result)
+        return push_result
 
     async def ltrim(self, key: str, start: int, end: int):
         self.ensure_client()
         push_result = await self.client.ltrim(key, start, end)
-        print(push_result)
+        return push_result
 
     async def llen(self, key: str) -> int:
         self.ensure_client()
@@ -71,7 +71,7 @@ class Valkey:
         if not isinstance(val, list):
             val = [val]
         push_result = await self.client.sadd(key, val)
-        print(push_result)
+        return push_result
 
     async def scard(self, key: str):
         self.ensure_client()
