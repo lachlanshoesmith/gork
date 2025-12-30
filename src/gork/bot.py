@@ -30,7 +30,7 @@ class Gork(discord.Client):
 
         print(f"gork up. aka {self.user}")
 
-    async def get_random_message(self, guild_id_key: str):
+    async def _get_random_message(self, guild_id_key: str):
         msgs_count = await self.db.scard(guild_id_key)
         if msgs_count < 100:
             return f"gork still listening, learning... check back in min. {100 - msgs_count} messages from now lol"
@@ -39,7 +39,7 @@ class Gork(discord.Client):
             msg: str = msgs[0].decode("utf-8")
             return msg
 
-    async def delete_message(self, guild_id: int, message_id: int):
+    async def _delete_message(self, guild_id: int, message_id: int):
         b = self.db.create_batch()
         msg_prefix = f"message:{message_id}"
         guild_msgs_key = f"guild:{guild_id}:messages"
@@ -52,15 +52,15 @@ class Gork(discord.Client):
 
         self.db.execute_batch(b)
 
-    async def train(self, guild_id: int, message: str, tone: str):
+    async def _train(self, guild_id: int, message: str, tone: str, delta=1):
         words = get_substantial_words(message)
         guild_words_tone = f"guild:{guild_id}:words:{tone}"
         b = self.db.create_batch()
         for word in words:
-            b.zincrby(guild_words_tone, 1, word)
+            b.zincrby(guild_words_tone, delta, word)
         await self.db.execute_batch(b)
 
-    async def store_sendable_message(self, guild_id: int, message: discord.Message):
+    async def _store_sendable_message(self, guild_id: int, message: discord.Message):
         guild_id_key = f"guild:{guild_id}:messages"
         msg_id = str(message.id)
         msg_content = message.content.strip()
@@ -80,21 +80,21 @@ class Gork(discord.Client):
 
         await self.db.execute_batch(b)
 
-    async def try_store_message(self, guild_id: int, message: discord.Message) -> None:
+    async def _try_store_message(self, guild_id: int, message: discord.Message) -> None:
         if random.randint(0, 4) == 0:
             # this message can be sent by gork
-            await self.store_sendable_message(guild_id, message)
+            await self._store_sendable_message(guild_id, message)
 
-    def ensure_permissions(self, channel: discord.TextChannel) -> bool:
+    def _ensure_permissions(self, channel: discord.TextChannel) -> bool:
         return (
             self.permitted_channels is not None
             and channel.id in self.permitted_channels
         )
 
-    def ensure_maintenance_guild(self, guild_id: int):
+    def _ensure_maintenance_guild(self, guild_id: int):
         return self.maintenance_guilds and guild_id in self.maintenance_guilds
 
-    def strip_mentions(self, message: discord.Message) -> discord.Message:
+    def _strip_mentions(self, message: discord.Message) -> discord.Message:
         message.content = message.content.replace("<@1415548973715820645>", "").strip()
         return message
 
@@ -105,15 +105,15 @@ class Gork(discord.Client):
         guild_id: int = message.guild.id
         guild_id_key = f"guild:{guild_id}"
 
-        if self.maintenance_mode and not self.ensure_maintenance_guild(guild_id):
+        if self.maintenance_mode and not self._ensure_maintenance_guild(guild_id):
             return
-        if not self.ensure_permissions(message.channel) and not self.maintenance_mode:
+        if not self._ensure_permissions(message.channel) and not self.maintenance_mode:
             return
 
         if self.user.mentioned_in(message):
-            message: discord.Message = self.strip_mentions(message)
-            await self.try_store_message(guild_id, message)
-            content = await self.get_random_message(guild_id_key)
+            message: discord.Message = self._strip_mentions(message)
+            await self._try_store_message(guild_id, message)
+            content = await self._get_random_message(guild_id_key)
             await message.channel.send(
                 content,
                 reference=message,
@@ -122,10 +122,10 @@ class Gork(discord.Client):
                 ),
             )
         else:
-            await self.try_store_message(guild_id, message)
+            await self._try_store_message(guild_id, message)
 
-    async def on_raw_reaction_add(self, event: discord.RawReactionActionEvent):
-        if self.maintenance_mode and not self.ensure_maintenance_guild(event.guild_id):
+    async def _handle_reaction(self, event: discord.RawReactionActionEvent, delta: int):
+        if self.maintenance_mode and not self._ensure_maintenance_guild(event.guild_id):
             return
 
         channel = self.get_channel(event.channel_id)
@@ -133,7 +133,7 @@ class Gork(discord.Client):
         if channel is None:
             channel = await self.fetch_channel(event.channel_id)
 
-        if not self.ensure_permissions(channel) and not self.maintenance_mode:
+        if not self._ensure_permissions(channel) and not self.maintenance_mode:
             return
 
         emoji = str(event.emoji)
@@ -143,4 +143,10 @@ class Gork(discord.Client):
 
         message = await channel.fetch_message(event.message_id)
 
-        await self.train(event.guild_id, message.content, tone)
+        await self._train(event.guild_id, message.content, tone, delta)
+
+    async def on_raw_reaction_add(self, event: discord.RawReactionActionEvent):
+        await self._handle_reaction(event, delta=1)
+
+    async def on_raw_reaction_remove(self, event: discord.RawReactionActionEvent):
+        await self._handle_reaction(event, delta=-1)
