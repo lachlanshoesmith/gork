@@ -2,14 +2,14 @@ import discord
 import sys
 import random
 from gork.db import Valkey
-# from typing import Mapping
+from gork.words import get_substantial_words
 
-tones = {
-    "happy": ["😀", "😃", "😄", "😁", "🙂", "☺️"],
-    "sad": [],
-    "surprising": [],
-    "amusing": [],
-    "enraging": [],
+TONES: dict[str, list[str]] = {
+    "happy": ["😀", "😃", "😄", "😁", "🙂", "☺️", "😺"],
+    "sad": ["☹️", "😥", "😢", "😭", "🙁", "😦", "😿"],
+    "surprising": ["🤯", "😲", "😯", "🙀", "😱", "😯"],
+    "amusing": ["😆", "🤣", "😂", "😹", "💀", "😸"],
+    "enraging": ["😡", "😠", "🤬", "😾"],
 }
 
 
@@ -47,31 +47,38 @@ class Gork(discord.Client):
         b.delete(f"{msg_prefix}:reactions")
         b.srem(guild_msgs_key, message_id)
 
-        for tone in tones:
+        for tone in TONES:
             b.zrem(f"guild:{guild_id}:tone:{tone}", message_id)
 
         self.db.execute_batch(b)
 
-    async def try_store_message(self, guild_id: int, message: discord.Message) -> None:
+    async def store_sendable_message(self, guild_id: int, message: discord.Message):
         guild_id_key = f"guild:{guild_id}:messages"
-        tone_prefix = f"guild:{guild_id}:tone"
         msg_id = str(message.id)
-
         msg_content = message.content.strip()
+        tone_prefix = f"guild:{guild_id}:tone"
+
+        msgs_count = await self.db.scard(guild_id_key)
+        if msgs_count >= 500:
+            msg_to_del = await self.db.srandmember(guild_id_key)
+            await self.delete_message(guild_id, msg_to_del)
+
+        b = self.db.create_batch()
+        b.set(f"message:{message.id}", msg_content)
+        b.sadd(guild_id_key, [msg_id])
+
+        for tone in TONES:
+            b.zadd(f"{tone_prefix}:{tone}", {msg_id: 0})
+
+        await self.db.execute_batch(b)
+
+    async def try_store_message(self, guild_id: int, message: discord.Message) -> None:
+        print(get_substantial_words(message.content))
+
         if random.randint(0, 4) == 0:
-            msgs_count = await self.db.scard(guild_id_key)
-            if msgs_count >= 500:
-                msg_to_del = await self.db.srandmember(guild_id_key)
-                await self.delete_message(guild_id, msg_to_del)
-
-            b = self.db.create_batch()
-            b.set(f"message:{message.id}", msg_content)
-            b.sadd(guild_id_key, [msg_id])
-
-            for tone in tones:
-                b.zadd(f"{tone_prefix}:{tone}", {msg_id: 0})
-
-            await self.db.execute_batch(b)
+            # this message can be sent by gork
+            await self.store_sendable_message(guild_id, message)
+        # store common training information
 
     def ensure_permissions(self, channel: discord.TextChannel) -> bool:
         return (
