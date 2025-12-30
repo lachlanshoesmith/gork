@@ -42,6 +42,7 @@ class Gork(discord.Client):
 
     async def try_store_message(self, guild_id: int, message: discord.Message) -> None:
         guild_id_key = f"guild:{guild_id}"
+        mood_prefix = f"{guild_id_key}:mood"
 
         msg_content = message.content.strip()
         if random.randint(0, 4) == 0:
@@ -49,8 +50,16 @@ class Gork(discord.Client):
             if msgs_count >= 500:
                 msg_to_del = await self.db.srandmember(guild_id_key)
                 self.delete_message(guild_id, msg_to_del)
-            # TODO: Store messages in more places. And store not just the ID but also the content of the message given by msg_content.
-            await self.db.sadd(guild_id_key, message.id)
+
+            b = self.db.create_batch()
+            b.add(f"message:{message.id}", msg_content)
+            b.sadd(guild_id_key, message.id)
+            b.zadd(f"{mood_prefix}:happy", {message.id: 0})
+            b.zadd(f"{mood_prefix}:sad", {message.id: 0})
+            b.zadd(f"{mood_prefix}:angry", {message.id: 0})
+            b.zadd(f"{mood_prefix}:surprised", {message.id: 0})
+            b.zadd(f"{mood_prefix}:funny", {message.id: 0})
+            await self.db.execute_batch(b)
 
     def ensure_permissions(self, channel: discord.TextChannel) -> bool:
         return (

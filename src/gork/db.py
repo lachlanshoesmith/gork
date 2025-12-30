@@ -1,4 +1,14 @@
-from glide import GlideClient, GlideClientConfiguration, NodeAddress, Batch
+from glide import (
+    GlideClient,
+    GlideClientConfiguration,
+    NodeAddress,
+    Batch,
+    TEncodable,
+    RangeByIndex,
+    RangeByLex,
+    RangeByScore,
+)
+from typing import Mapping, Union
 
 
 class Valkey:
@@ -84,12 +94,30 @@ class Valkey:
         return val
 
     async def delete(self, key: str, *args: str):
+        self.ensure_client()
         keys = list(args).append(key)
         amount_deleted = await self.client.delete(keys)
         return amount_deleted
 
     async def create_batch(self, is_atomic=True) -> Batch:
+        self.ensure_client()
         return self.client.Batch(is_atomic=is_atomic)
 
     async def execute_batch(self, batch: Batch):
+        self.ensure_client()
         await self.client.exec(batch)
+
+    async def zadd(self, key: TEncodable, members_scores: Mapping[TEncodable, float]):
+        self.ensure_client()
+        elems_added = await self.client.zadd(key, members_scores)
+        return elems_added
+
+    async def zrange(
+        self,
+        key: TEncodable,
+        range_query: Union[RangeByIndex, RangeByLex, RangeByScore],
+        reverse: bool = False,
+    ):
+        self.ensure_client()
+        rnge = await self.client.zrange(key, range_query, reverse)
+        return rnge
