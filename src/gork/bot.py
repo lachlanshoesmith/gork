@@ -39,6 +39,8 @@ class Gork(discord.Client):
                 )
 
             msg_id: str = msgs[0].decode("utf-8")
+            score = await self.db.zscore(f"{guild_messages_key}:tone:{tone}", msg_id)
+            print(score)
             msg = await self.db.get(f"message:{msg_id}")
             return msg.decode("utf-8")
 
