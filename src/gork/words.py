@@ -42,7 +42,7 @@ async def determine_tone(guild_id: int, message: str, db: Valkey):
     scores = {}
     for tone in TONES:
         scores[tone] = 0
-        # TODO: this is obviously tremendously inefficient
+        # TODO: this is obviously tremendously inefficient, need to move to pipeline approach
         key = f"guild:{guild_id}:words:{tone}"
         for word in words:
             word_score = await db.zscore(key, word)

@@ -9,7 +9,7 @@ MIN_MESSAGES = 10
 
 
 class Gork(discord.Client):
-    def ___init__(self, db: Valkey, *args, **kwargs):
+    def __init__(self, db: Valkey, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.db = db
         self.permitted_channels = kwargs.get("permitted_channels", None)
