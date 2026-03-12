@@ -128,5 +128,5 @@ class Valkey:
 
     async def zrandmember(self, key: TEncodable, count=1):
         self.ensure_client()
-        val = await self.client.zrandmember(key, count)
+        val = await self.client.zrandmemberWithCount(key, count)
         return val
