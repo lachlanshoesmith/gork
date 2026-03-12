@@ -125,3 +125,8 @@ class Valkey:
     async def zscore(self, key: TEncodable, member: TEncodable):
         self.ensure_client()
         return await self.client.zscore(key, member)
+
+    async def zrandmember(self, key: TEncodable, count=1):
+        self.ensure_client()
+        val = await self.client.zrandmember(key, count)
+        return val

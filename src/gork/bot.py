@@ -34,9 +34,7 @@ class Gork(discord.Client):
             if not tone:
                 msgs = await self.db.srandmember(guild_messages_key)
             else:
-                msgs = await self.db.zrange(
-                    f"{guild_messages_key}:tone:{tone}", RangeByIndex(0, 0), True
-                )
+                msgs = await self.db.zrandmember(f"{guild_messages_key}:tone:{tone}")
 
             msg_id: str = msgs[0].decode("utf-8")
             msg = await self.db.get(f"message:{msg_id}")
