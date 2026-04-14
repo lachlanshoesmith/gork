@@ -2,7 +2,6 @@ import discord
 import sys
 import random
 from gork.db import Valkey
-from glide.async_commands.sorted_set import RangeByIndex
 from gork.words import get_substantial_words, TONES, determine_tone
 
 MIN_MESSAGES = 10
@@ -38,7 +37,11 @@ class Gork(discord.Client):
 
             msg_id: str = msgs[0].decode("utf-8")
             msg = await self.db.get(f"message:{msg_id}")
-            return msg.decode("utf-8")
+            msg = msg.decode("utf-8")
+            if not msg:
+                msg = await self.__get_random_message(guild_id, tone)
+                msg = msg.decode("utf-8")
+            return msg
 
     async def __delete_message(self, guild_id: int, message_id: int):
         b = self.db.create_batch()
