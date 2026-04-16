@@ -24,7 +24,7 @@ class Gork(discord.Client):
 
         print(f"gork up. aka {self.user}")
 
-    async def __get_random_message(self, guild_id: int, tone: str | None):
+    async def __get_random_message(self, guild_id: int, tone: str | None) -> str:
         guild_messages_key = f"guild:{guild_id}:messages"
         msgs_count = await self.db.scard(guild_messages_key)
         if msgs_count < MIN_MESSAGES:
@@ -40,7 +40,6 @@ class Gork(discord.Client):
             msg = msg.decode("utf-8")
             if not msg:
                 msg = await self.__get_random_message(guild_id, tone)
-                msg = msg.decode("utf-8")
             return msg
 
     async def __delete_message(self, guild_id: int, message_id: int):
@@ -87,6 +86,9 @@ class Gork(discord.Client):
     async def __try_store_message(
         self, guild_id: int, message: discord.Message
     ) -> None:
+        if message.content.startswith("."):
+            # ignore fmbot commands
+            return
         if random.randint(0, 4) == 0:
             # this message can be sent by gork
             await self.__store_sendable_message(guild_id, message)
