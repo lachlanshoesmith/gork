@@ -166,7 +166,7 @@ class Gork(discord.Client):
             b.zadd(f"{tone_prefix}:{tone}", {msg_id: 0})
 
         # Add to reverse index
-        b.hset(content_to_id_key, c_hash, msg_id)
+        b.hset(content_to_id_key, {c_hash: msg_id})
 
         await self.db.execute_batch(b)
 
