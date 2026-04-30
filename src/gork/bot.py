@@ -120,13 +120,34 @@ class Gork(discord.Client):
         # Handle "Delete this. Now." reply command
         if message.reference and message.reference.message_id:
             if message.content.strip() == "Delete this. Now.":
-                original_msg_id = message.reference.message_id
-                msg_exists = await self.db.get(f"message:{original_msg_id}")
+                # Fetch the message being replied to
+                try:
+                    replied_to_msg = await message.channel.fetch_message(
+                        message.reference.message_id
+                    )
+                except discord.NotFound:
+                    await message.reply("Don't understand")
+                    return
 
-                if msg_exists is None:
+                target_content = replied_to_msg.content.strip()
+
+                # Search guild messages set for matching content
+                guild_msgs_key = f"guild:{guild_id}:messages"
+                all_msg_ids = await self.db.srandmember(guild_msgs_key, -1)
+
+                msg_to_delete = None
+                if all_msg_ids:
+                    for msg_id_bytes in all_msg_ids:
+                        msg_id = msg_id_bytes.decode("utf-8")
+                        stored_content = await self.db.get(f"message:{msg_id}")
+                        if stored_content and stored_content.decode("utf-8") == target_content:
+                            msg_to_delete = msg_id
+                            break
+
+                if msg_to_delete is None:
                     await message.reply("Don't understand")
                 else:
-                    await self.__delete_message(guild_id, original_msg_id)
+                    await self.__delete_message(guild_id, int(msg_to_delete))
                     await message.reply("Ok")
 
                 return
