@@ -100,7 +100,7 @@ class Valkey:
 
     async def hset(self, key: str, field: str, value: str):
         self.ensure_client()
-        await self.client.hset(key, field, value)
+        await self.client.hset(key, {field: value})
 
     async def hget(self, key: str, field: str) -> str | None:
         self.ensure_client()
@@ -108,7 +108,7 @@ class Valkey:
 
     async def hdel(self, key: str, field: str):
         self.ensure_client()
-        await self.client.hdel(key, field)
+        await self.client.hdel(key, [field])
 
     async def delete(self, key: str, *args: str):
         self.ensure_client()
