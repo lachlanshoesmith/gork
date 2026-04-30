@@ -53,7 +53,7 @@ class Gork(discord.Client):
         for tone in TONES:
             b.zrem(f"{guild_msgs_key}:tone:{tone}", [str(message_id)])
 
-        self.db.execute_batch(b)
+        await self.db.execute_batch(b)
 
     async def __train(self, guild_id: int, message: str, tone: str, delta=1):
         words = get_substantial_words(message)
