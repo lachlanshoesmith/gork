@@ -93,6 +93,11 @@ class Valkey:
         val = await self.client.srandmember_count(key, count)
         return val
 
+    async def smembers(self, key: str) -> list:
+        self.ensure_client()
+        members = await self.client.smembers(key)
+        return members
+
     async def delete(self, key: str, *args: str):
         self.ensure_client()
         keys = list(args).append(key)

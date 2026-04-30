@@ -133,7 +133,7 @@ class Gork(discord.Client):
 
                 # Search guild messages set for matching content
                 guild_msgs_key = f"guild:{guild_id}:messages"
-                all_msg_ids = await self.db.srandmember(guild_msgs_key, -1)
+                all_msg_ids = await self.db.smembers(guild_msgs_key)
 
                 msg_to_delete = None
                 if all_msg_ids:
