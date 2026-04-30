@@ -117,6 +117,20 @@ class Gork(discord.Client):
         if not self.__ensure_permissions(message.channel) and not self.maintenance_mode:
             return
 
+        # Handle "Delete this. Now." reply command
+        if message.reference and message.reference.message_id:
+            if message.content.strip() == "Delete this. Now.":
+                original_msg_id = message.reference.message_id
+                msg_exists = await self.db.get(f"message:{original_msg_id}")
+
+                if msg_exists is None:
+                    await message.reply("Don't understand")
+                else:
+                    await self.__delete_message(guild_id, original_msg_id)
+                    await message.reply("Ok")
+
+                return
+
         if self.user.mentioned_in(message):
             tone = await determine_tone(guild_id, message.content, self.db)
 
