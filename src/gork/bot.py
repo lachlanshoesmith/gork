@@ -48,10 +48,10 @@ class Gork(discord.Client):
         guild_msgs_key = f"guild:{guild_id}:messages"
         b.delete(msg_prefix)
         # b.delete(f"{msg_prefix}:reactions")
-        b.srem(guild_msgs_key, message_id)
+        b.srem(guild_msgs_key, [str(message_id)])
 
         for tone in TONES:
-            b.zrem(f"{guild_msgs_key}:tone:{tone}", message_id)
+            b.zrem(f"{guild_msgs_key}:tone:{tone}", [str(message_id)])
 
         self.db.execute_batch(b)
 
