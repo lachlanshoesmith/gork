@@ -75,20 +75,25 @@ class Gork(discord.Client):
 
     async def __dedup_and_build_index(self):
         """Remove duplicates and build reverse index on startup."""
-        # Get all tracked guilds
-        guild_ids_raw = await self.db.smembers("gork:guilds")
-        if not guild_ids_raw:
-            print("No guilds to process")
+        # Use Discord.py self.guilds to discover guilds
+        if not self.guilds:
+            print("Bot is not in any guilds")
             return
 
         total_dupes = 0
 
-        for guild_id_raw in guild_ids_raw:
-            guild_id_str = guild_id_raw.decode("utf-8") if isinstance(guild_id_raw, bytes) else str(guild_id_raw)
-            guild_id = int(guild_id_str)
-
+        for guild in self.guilds:
+            guild_id = guild.id
             guild_msgs_key = f"guild:{guild_id}:messages"
             content_to_id_key = f"guild:{guild_id}:content_to_id"
+
+            # Check if this guild has stored messages
+            msgs_count = await self.db.scard(guild_msgs_key)
+            if msgs_count == 0:
+                continue
+
+            # Track this guild for future restarts
+            await self.db.sadd("gork:guilds", [str(guild_id)])
 
             # Get all message IDs
             all_msg_ids = await self.db.smembers(guild_msgs_key)
