@@ -145,7 +145,8 @@ class Gork(discord.Client):
                         if stored_content:
                             stored_str = stored_content.decode("utf-8")
                             print(f"DEBUG: Comparing with stored msg {msg_id}: '{stored_str[:50]}...'")
-                            if stored_str == target_content:
+                            # Normalize both strings for comparison (remove extra whitespace)
+                            if stored_str.strip() == target_content:
                                 msg_to_delete = msg_id
                                 print("DEBUG: Found match!")
                                 break
