@@ -62,7 +62,7 @@ class Gork(discord.Client):
         if content:
             content_str = content.decode("utf-8") if isinstance(content, bytes) else str(content)
             c_hash = content_hash(content_str)
-            b.hdel(content_to_id_key, c_hash)
+            b.hdel(content_to_id_key, [c_hash])
 
         b.delete(msg_prefix)
         # b.delete(f"{msg_prefix}:reactions")
