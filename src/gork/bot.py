@@ -130,21 +130,28 @@ class Gork(discord.Client):
                     return
 
                 target_content = replied_to_msg.content.strip()
+                print(f"DEBUG: Looking for content: '{target_content}'")
 
                 # Search guild messages set for matching content
                 guild_msgs_key = f"guild:{guild_id}:messages"
                 all_msg_ids = await self.db.smembers(guild_msgs_key)
+                print(f"DEBUG: Found {len(all_msg_ids) if all_msg_ids else 0} message IDs in set")
 
                 msg_to_delete = None
                 if all_msg_ids:
                     for msg_id_bytes in all_msg_ids:
                         msg_id = msg_id_bytes.decode("utf-8")
                         stored_content = await self.db.get(f"message:{msg_id}")
-                        if stored_content and stored_content.decode("utf-8") == target_content:
-                            msg_to_delete = msg_id
-                            break
+                        if stored_content:
+                            stored_str = stored_content.decode("utf-8")
+                            print(f"DEBUG: Comparing with stored msg {msg_id}: '{stored_str[:50]}...'")
+                            if stored_str == target_content:
+                                msg_to_delete = msg_id
+                                print(f"DEBUG: Found match!")
+                                break
 
                 if msg_to_delete is None:
+                    print(f"DEBUG: No match found for content: '{target_content}'")
                     await message.reply("Don't understand")
                 else:
                     await self.__delete_message(guild_id, int(msg_to_delete))
