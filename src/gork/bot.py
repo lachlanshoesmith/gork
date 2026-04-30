@@ -147,7 +147,7 @@ class Gork(discord.Client):
                             print(f"DEBUG: Comparing with stored msg {msg_id}: '{stored_str[:50]}...'")
                             if stored_str == target_content:
                                 msg_to_delete = msg_id
-                                print(f"DEBUG: Found match!")
+                                print("DEBUG: Found match!")
                                 break
 
                 if msg_to_delete is None:
