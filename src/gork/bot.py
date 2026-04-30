@@ -137,12 +137,21 @@ class Gork(discord.Client):
 
                 msg_to_delete = None
                 if all_msg_ids:
-                    for msg_id_bytes in all_msg_ids:
-                        msg_id = msg_id_bytes.decode("utf-8")
+                    for msg_id_raw in all_msg_ids:
+                        # Handle both bytes and string returns from Glide
+                        if isinstance(msg_id_raw, bytes):
+                            msg_id = msg_id_raw.decode("utf-8")
+                        else:
+                            msg_id = str(msg_id_raw)
+                        
                         stored_content = await self.db.get(f"message:{msg_id}")
                         if stored_content:
-                            stored_str = stored_content.decode("utf-8")
-                            # Normalize both strings for comparison (remove extra whitespace)
+                            if isinstance(stored_content, bytes):
+                                stored_str = stored_content.decode("utf-8")
+                            else:
+                                stored_str = str(stored_content)
+                            
+                            # Normalize both strings for comparison
                             if stored_str.strip() == target_content:
                                 msg_to_delete = msg_id
                                 break
