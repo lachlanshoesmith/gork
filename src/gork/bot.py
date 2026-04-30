@@ -1,8 +1,14 @@
 import discord
 import sys
 import random
+import hashlib
 from gork.db import Valkey
 from gork.words import get_substantial_words, TONES, determine_tone
+
+
+def content_hash(content: str) -> str:
+    """Generate a short hash for message content to use as reverse index key."""
+    return hashlib.sha256(content.strip().encode("utf-8")).hexdigest()[:16]
 
 MIN_MESSAGES = 10
 
@@ -21,6 +27,9 @@ class Gork(discord.Client):
         except Exception as exc:
             print("Failed to connect to Valkey:", exc, file=sys.stderr)
             sys.exit(1)
+
+        # Run startup dedup and index building
+        await self.__dedup_and_build_index()
 
         print(f"gork up. aka {self.user}")
 
@@ -46,6 +55,15 @@ class Gork(discord.Client):
         b = self.db.create_batch()
         msg_prefix = f"message:{message_id}"
         guild_msgs_key = f"guild:{guild_id}:messages"
+        content_to_id_key = f"guild:{guild_id}:content_to_id"
+
+        # Get content before deleting to remove from reverse index
+        content = await self.db.get(msg_prefix)
+        if content:
+            content_str = content.decode("utf-8") if isinstance(content, bytes) else str(content)
+            c_hash = content_hash(content_str)
+            b.hdel(content_to_id_key, c_hash)
+
         b.delete(msg_prefix)
         # b.delete(f"{msg_prefix}:reactions")
         b.srem(guild_msgs_key, [str(message_id)])
@@ -54,6 +72,57 @@ class Gork(discord.Client):
             b.zrem(f"{guild_msgs_key}:tone:{tone}", [str(message_id)])
 
         await self.db.execute_batch(b)
+
+    async def __dedup_and_build_index(self):
+        """Remove duplicates and build reverse index on startup."""
+        # Get all tracked guilds
+        guild_ids_raw = await self.db.smembers("gork:guilds")
+        if not guild_ids_raw:
+            print("No guilds to process")
+            return
+
+        total_dupes = 0
+
+        for guild_id_raw in guild_ids_raw:
+            guild_id_str = guild_id_raw.decode("utf-8") if isinstance(guild_id_raw, bytes) else str(guild_id_raw)
+            guild_id = int(guild_id_str)
+
+            guild_msgs_key = f"guild:{guild_id}:messages"
+            content_to_id_key = f"guild:{guild_id}:content_to_id"
+
+            # Get all message IDs
+            all_msg_ids = await self.db.smembers(guild_msgs_key)
+            if not all_msg_ids:
+                continue
+
+            seen_content = {}  # content_hash -> msg_id
+            duplicates = []
+
+            for msg_id_raw in all_msg_ids:
+                msg_id = msg_id_raw.decode("utf-8") if isinstance(msg_id_raw, bytes) else str(msg_id_raw)
+                content = await self.db.get(f"message:{msg_id}")
+                if not content:
+                    continue
+
+                content_str = content.decode("utf-8") if isinstance(content, bytes) else str(content)
+                c_hash = content_hash(content_str)
+
+                if c_hash in seen_content:
+                    # Duplicate content!
+                    duplicates.append(msg_id)
+                else:
+                    seen_content[c_hash] = msg_id
+                    # Ensure reverse index is populated
+                    await self.db.hset(content_to_id_key, c_hash, msg_id)
+
+            # Delete duplicates
+            for dup_id in duplicates:
+                await self.__delete_message(guild_id, int(dup_id))
+
+            total_dupes += len(duplicates)
+            print(f"Guild {guild_id}: removed {len(duplicates)} duplicates, indexed {len(seen_content)} unique messages")
+
+        print(f"Dedup complete: removed {total_dupes} total duplicates across all guilds")
 
     async def __train(self, guild_id: int, message: str, tone: str, delta=1):
         words = get_substantial_words(message)
@@ -68,6 +137,15 @@ class Gork(discord.Client):
         msg_id = str(message.id)
         msg_content = message.content.strip()
         tone_prefix = f"{guild_id_key}:tone"
+        content_to_id_key = f"guild:{guild_id}:content_to_id"
+
+        # Check if content already exists (dedup check)
+        c_hash = content_hash(msg_content)
+        existing_id = await self.db.hget(content_to_id_key, c_hash)
+
+        if existing_id is not None:
+            # Content already stored, skip this message
+            return
 
         msgs_count = await self.db.scard(guild_id_key)
         if msgs_count >= 500:
@@ -77,9 +155,13 @@ class Gork(discord.Client):
         b = self.db.create_batch()
         b.set(f"message:{message.id}", msg_content)
         b.sadd(guild_id_key, [msg_id])
+        b.sadd("gork:guilds", [str(guild_id)])  # Track guild ID
 
         for tone in TONES:
             b.zadd(f"{tone_prefix}:{tone}", {msg_id: 0})
+
+        # Add to reverse index
+        b.hset(content_to_id_key, c_hash, msg_id)
 
         await self.db.execute_batch(b)
 
@@ -130,37 +212,16 @@ class Gork(discord.Client):
                     return
 
                 target_content = replied_to_msg.content.strip()
+                c_hash = content_hash(target_content)
+                content_to_id_key = f"guild:{guild_id}:content_to_id"
 
-                # Search guild messages set for matching content
-                guild_msgs_key = f"guild:{guild_id}:messages"
-                all_msg_ids = await self.db.smembers(guild_msgs_key)
+                existing_id = await self.db.hget(content_to_id_key, c_hash)
 
-                msg_to_delete = None
-                if all_msg_ids:
-                    for msg_id_raw in all_msg_ids:
-                        # Handle both bytes and string returns from Glide
-                        if isinstance(msg_id_raw, bytes):
-                            msg_id = msg_id_raw.decode("utf-8")
-                        else:
-                            msg_id = str(msg_id_raw)
-                        
-                        stored_content = await self.db.get(f"message:{msg_id}")
-                        if stored_content:
-                            if isinstance(stored_content, bytes):
-                                stored_str = stored_content.decode("utf-8")
-                            else:
-                                stored_str = str(stored_content)
-                            
-                            # Normalize both strings for comparison
-                            if stored_str.strip() == target_content:
-                                msg_to_delete = msg_id
-                                break
-
-                if msg_to_delete is None:
-                    print(f"DEBUG: No match found for content: '{target_content}'")
+                if existing_id is None:
                     await message.reply("Don't understand")
                 else:
-                    await self.__delete_message(guild_id, int(msg_to_delete))
+                    msg_id = existing_id.decode("utf-8") if isinstance(existing_id, bytes) else str(existing_id)
+                    await self.__delete_message(guild_id, int(msg_id))
                     await message.reply("Ok")
 
                 return

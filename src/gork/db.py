@@ -98,6 +98,18 @@ class Valkey:
         members = await self.client.smembers(key)
         return members
 
+    async def hset(self, key: str, field: str, value: str):
+        self.ensure_client()
+        await self.client.hset(key, field, value)
+
+    async def hget(self, key: str, field: str) -> str | None:
+        self.ensure_client()
+        return await self.client.hget(key, field)
+
+    async def hdel(self, key: str, field: str):
+        self.ensure_client()
+        await self.client.hdel(key, field)
+
     async def delete(self, key: str, *args: str):
         self.ensure_client()
         keys = list(args).append(key)
