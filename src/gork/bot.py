@@ -130,12 +130,10 @@ class Gork(discord.Client):
                     return
 
                 target_content = replied_to_msg.content.strip()
-                print(f"DEBUG: Looking for content: '{target_content}'")
 
                 # Search guild messages set for matching content
                 guild_msgs_key = f"guild:{guild_id}:messages"
                 all_msg_ids = await self.db.smembers(guild_msgs_key)
-                print(f"DEBUG: Found {len(all_msg_ids) if all_msg_ids else 0} message IDs in set")
 
                 msg_to_delete = None
                 if all_msg_ids:
@@ -144,11 +142,9 @@ class Gork(discord.Client):
                         stored_content = await self.db.get(f"message:{msg_id}")
                         if stored_content:
                             stored_str = stored_content.decode("utf-8")
-                            print(f"DEBUG: Comparing with stored msg {msg_id}: '{stored_str[:50]}...'")
                             # Normalize both strings for comparison (remove extra whitespace)
                             if stored_str.strip() == target_content:
                                 msg_to_delete = msg_id
-                                print("DEBUG: Found match!")
                                 break
 
                 if msg_to_delete is None:
