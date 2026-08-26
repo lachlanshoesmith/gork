@@ -1,5 +1,6 @@
-import re
 import random
+import re
+
 from gork.db import Valkey
 
 INSUBSTANTIAL_WORDS: set[str] = {
@@ -27,7 +28,7 @@ INSUBSTANTIAL_WORDS: set[str] = {
 TONES: dict[str, set[str]] = {
     "happy": {"😀", "😃", "😄", "😁", "🙂", "☺️", "😺"},
     "sad": {"☹️", "😥", "😢", "😭", "🙁", "😦", "😿"},
-    "surprising": {"🤯", "😲", "😯", "🙀", "😱", "😯"},
+    "surprising": {"🤯", "😲", "😯", "🙀", "😱"},
     "amusing": {"😆", "🤣", "😂", "😹", "💀", "😸"},
     "enraging": {"😡", "😠", "🤬", "😾"},
 }

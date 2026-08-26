@@ -1,16 +1,15 @@
-import os
 import ast
+import os
 
 from discord import Intents
 
 from gork.bot import Gork
 from gork.db import Valkey
 
-
 TOKEN: str = os.environ["GORK_TOKEN"]
 HOSTS: str = os.environ["GORK_HOSTS"]
 PERMITTED_CHANNELS: str | None = os.getenv("GORK_PERMITTED_CHANNELS", default=None)
-maintenance_mode: int = int(os.getenv(key="GORK_MAINTENANCE_MODE", default=0))
+maintenance_mode: int = int(os.getenv(key="GORK_MAINTENANCE_MODE", default="0"))
 MAINTENANCE_GUILDS: str | None = os.getenv(key="GORK_MAINTENANCE_GUILDS", default=None)
 
 intents = Intents.default()

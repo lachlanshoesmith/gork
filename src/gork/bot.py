@@ -1,10 +1,12 @@
-import discord
-import sys
-import random
 import hashlib
+import random
+import sys
+from datetime import UTC, datetime
+
+import discord
+
 from gork.db import Valkey
-from gork.words import get_substantial_words, TONES, determine_tone, get_token_count
-from datetime import datetime, timezone
+from gork.words import TONES, determine_tone, get_substantial_words, get_token_count
 
 
 def content_hash(content: str) -> str:
@@ -26,7 +28,7 @@ class Gork(discord.Client):
     async def on_ready(self):
         try:
             await self.db.connect()
-        except Exception as exc:
+        except OSError as exc:
             print("Failed to connect to Valkey:", exc, file=sys.stderr)
             sys.exit(1)
 
@@ -231,8 +233,11 @@ class Gork(discord.Client):
         if not self.__ensure_permissions(message.channel) and not self.maintenance_mode:
             return
 
-        if message.reference and message.reference.message_id:
-            if message.content.strip() == "Delete this. Now.":
+        if (
+            message.reference
+            and message.reference.message_id
+            and message.content.strip() == "Delete this. Now."
+        ):
                 try:
                     replied_to_msg = await message.channel.fetch_message(
                         message.reference.message_id
@@ -274,7 +279,7 @@ class Gork(discord.Client):
                 multiplier = 1
             else:
                 hours_since_last_successful_message = (
-                    datetime.now(timezone.utc) - time_of_last_successful_message
+                    datetime.now(UTC) - time_of_last_successful_message
                 ).total_seconds() / 3600
 
                 if hours_since_last_successful_message < 24:
@@ -308,7 +313,7 @@ class Gork(discord.Client):
             )
             await self.db.set(
                 f"user:{message.author.id}:last_successful_message",
-                datetime.now(timezone.utc).isoformat(),
+                datetime.now(UTC).isoformat(),
             )
         else:
             await self.__update_user_tokens(message.author, random.randint(1, 10))
@@ -395,7 +400,7 @@ gork"""
             await channel.send(content)
             await self.db.set(
                 f"user:{message.author.id}:last_successful_message",
-                datetime.now(timezone.utc).isoformat(),
+                datetime.now(UTC).isoformat(),
             )
             return None
 
