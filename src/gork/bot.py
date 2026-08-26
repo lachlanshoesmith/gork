@@ -279,8 +279,6 @@ class Gork(discord.Client):
                     ),
                 )
                 return
-            else:
-                print(message)
 
             if token_budget is None:
                 return
