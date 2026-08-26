@@ -401,8 +401,8 @@ You have been allocated a budget of **{DEFAULT_TOKEN_COUNT}** tokens to use in y
 
 You can earn more tokens by:
 * Reacting to my messages with certain common emojis
-    * React honestly with what you think makes sense for best results
-    * React dishonestly for worse results (sometimes better)
+  * React honestly with what you think makes sense for best results
+  * React dishonestly for worse results (sometimes better)
 * Speaking in a channel I can observe without pinging me
     * Note that a user's token count is only instantiated upon their first gork ping. 
 
