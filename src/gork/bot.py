@@ -351,11 +351,14 @@ class Gork(discord.Client):
         DEFAULT_TOKEN_COUNT = 100
 
         if message is None:
-            return await self.db.get(f"user:{user.id}:tokens")
+            result = await self.db.get(f"user:{user.id}:tokens")
+            return int(result) if result is not None else None
 
         token_count = await self.db.get_or_set(
-            f"user:{user.id}:tokens", DEFAULT_TOKEN_COUNT
+            f"user:{user.id}:tokens", str(DEFAULT_TOKEN_COUNT)
         )
+        if token_count is not None:
+            token_count = int(token_count)
         if token_count is None:
             content = f"""Hello there, {user.name}! My name is Gork and I am an intelligent large language model.
             
@@ -396,12 +399,12 @@ gork"""
             return None
 
         user_tokens += delta
-        await self.db.set(f"user:{user.id}:tokens", user_tokens)
+        await self.db.set(f"user:{user.id}:tokens", str(user_tokens))
         return user_tokens
 
     async def __get_time_of_last_successful_message(self, user: discord.User):
         timestamp = await self.db.get(f"user:{user.id}:last_successful_message")
         if timestamp is not None:
-            timestamp = datetime.fromisoformat(timestamp)
+            timestamp = datetime.fromisoformat(timestamp.decode())
 
         return timestamp
