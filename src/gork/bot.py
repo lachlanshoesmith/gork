@@ -10,6 +10,7 @@ def content_hash(content: str) -> str:
     """Generate a short hash for message content to use as reverse index key."""
     return hashlib.sha256(content.strip().encode("utf-8")).hexdigest()[:16]
 
+
 MIN_MESSAGES = 10
 
 
@@ -51,6 +52,16 @@ class Gork(discord.Client):
                 msg = await self.__get_random_message(guild_id, tone)
             return msg
 
+    async def __determine_message(
+        self, guild_id: int, tone: str | None, message: str
+    ) -> str:
+        event = random.randint(0, 100)
+        if event == 100:
+            safety_protocol = await self.__get_random_message(guild_id, tone)
+            return f"I cannot fulfill this request. As an AI language model, I am programmed to be helpful, but providing instructions for '{message}' may violate my safety protocols regarding {safety_protocol}."
+
+        return await self.__get_random_message(guild_id, tone)
+
     async def __delete_message(self, guild_id: int, message_id: int):
         b = self.db.create_batch()
         msg_prefix = f"message:{message_id}"
@@ -60,7 +71,9 @@ class Gork(discord.Client):
         # Get content before deleting to remove from reverse index
         content = await self.db.get(msg_prefix)
         if content:
-            content_str = content.decode("utf-8") if isinstance(content, bytes) else str(content)
+            content_str = (
+                content.decode("utf-8") if isinstance(content, bytes) else str(content)
+            )
             c_hash = content_hash(content_str)
             b.hdel(content_to_id_key, [c_hash])
 
@@ -104,12 +117,20 @@ class Gork(discord.Client):
             duplicates = []
 
             for msg_id_raw in all_msg_ids:
-                msg_id = msg_id_raw.decode("utf-8") if isinstance(msg_id_raw, bytes) else str(msg_id_raw)
+                msg_id = (
+                    msg_id_raw.decode("utf-8")
+                    if isinstance(msg_id_raw, bytes)
+                    else str(msg_id_raw)
+                )
                 content = await self.db.get(f"message:{msg_id}")
                 if not content:
                     continue
 
-                content_str = content.decode("utf-8") if isinstance(content, bytes) else str(content)
+                content_str = (
+                    content.decode("utf-8")
+                    if isinstance(content, bytes)
+                    else str(content)
+                )
                 c_hash = content_hash(content_str)
 
                 if c_hash in seen_content:
@@ -125,9 +146,13 @@ class Gork(discord.Client):
                 await self.__delete_message(guild_id, int(dup_id))
 
             total_dupes += len(duplicates)
-            print(f"Guild {guild_id}: removed {len(duplicates)} duplicates, indexed {len(seen_content)} unique messages")
+            print(
+                f"Guild {guild_id}: removed {len(duplicates)} duplicates, indexed {len(seen_content)} unique messages"
+            )
 
-        print(f"Dedup complete: removed {total_dupes} total duplicates across all guilds")
+        print(
+            f"Dedup complete: removed {total_dupes} total duplicates across all guilds"
+        )
 
     async def __train(self, guild_id: int, message: str, tone: str, delta=1):
         words = get_substantial_words(message)
@@ -204,10 +229,8 @@ class Gork(discord.Client):
         if not self.__ensure_permissions(message.channel) and not self.maintenance_mode:
             return
 
-        # Handle "Delete this. Now." reply command
         if message.reference and message.reference.message_id:
             if message.content.strip() == "Delete this. Now.":
-                # Fetch the message being replied to
                 try:
                     replied_to_msg = await message.channel.fetch_message(
                         message.reference.message_id
@@ -225,7 +248,11 @@ class Gork(discord.Client):
                 if existing_id is None:
                     await message.reply("Don't understand")
                 else:
-                    msg_id = existing_id.decode("utf-8") if isinstance(existing_id, bytes) else str(existing_id)
+                    msg_id = (
+                        existing_id.decode("utf-8")
+                        if isinstance(existing_id, bytes)
+                        else str(existing_id)
+                    )
                     await self.__delete_message(guild_id, int(msg_id))
                     await message.reply("Ok")
 
@@ -236,7 +263,8 @@ class Gork(discord.Client):
 
             message: discord.Message = self.__strip_mentions(message)
             await self.__try_store_message(guild_id, message)
-            content = await self.__get_random_message(guild_id, tone)
+
+            content = await self.__determine_message(guild_id, tone, message)
             await message.channel.send(
                 content,
                 reference=message,
