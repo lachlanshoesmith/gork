@@ -238,36 +238,50 @@ class Gork(discord.Client):
             and message.reference.message_id
             and message.content.strip() == "Delete this. Now."
         ):
-                try:
-                    replied_to_msg = await message.channel.fetch_message(
-                        message.reference.message_id
-                    )
-                except discord.NotFound:
-                    await message.reply("Don't understand")
-                    return
-
-                target_content = replied_to_msg.content.strip()
-                c_hash = content_hash(target_content)
-                content_to_id_key = f"guild:{guild_id}:content_to_id"
-
-                existing_id = await self.db.hget(content_to_id_key, c_hash)
-
-                if existing_id is None:
-                    await message.reply("Don't understand")
-                else:
-                    msg_id = (
-                        existing_id.decode("utf-8")
-                        if isinstance(existing_id, bytes)
-                        else str(existing_id)
-                    )
-                    await self.__delete_message(guild_id, int(msg_id))
-                    await message.reply("Ok")
-
+            try:
+                replied_to_msg = await message.channel.fetch_message(
+                    message.reference.message_id
+                )
+            except discord.NotFound:
+                await message.reply("Don't understand")
                 return
 
+            target_content = replied_to_msg.content.strip()
+            c_hash = content_hash(target_content)
+            content_to_id_key = f"guild:{guild_id}:content_to_id"
+
+            existing_id = await self.db.hget(content_to_id_key, c_hash)
+
+            if existing_id is None:
+                await message.reply("Don't understand")
+            else:
+                msg_id = (
+                    existing_id.decode("utf-8")
+                    if isinstance(existing_id, bytes)
+                    else str(existing_id)
+                )
+                await self.__delete_message(guild_id, int(msg_id))
+                await message.reply("Ok")
+
+            return
+
         if self.user.mentioned_in(message):
+            message: discord.Message = self.__strip_mentions(message)
             tokens_consumed = get_token_count(message.content)
             token_budget = await self.__get_user_tokens(message.author, message)
+
+            if message.content == "Tokens PLZ":
+                await message.channel.send(
+                    str(token_budget) if token_budget else "Don't have any Brokie",
+                    reference=message,
+                    allowed_mentions=discord.AllowedMentions(
+                        users=False, everyone=False, roles=False, replied_user=True
+                    ),
+                )
+                return
+            else:
+                print(message)
+
             if token_budget is None:
                 return
 
@@ -284,7 +298,7 @@ class Gork(discord.Client):
 
                 if hours_since_last_successful_message < 24:
                     discount = 0.5 ** (hours_since_last_successful_message / 12)
-                    multiplier = 1 - discount
+                    multiplier = 0.5 + 0.5 * (1 - discount)
                 else:
                     multiplier = 1.0
 
@@ -299,7 +313,6 @@ class Gork(discord.Client):
 
             tone = await determine_tone(guild_id, message.content, self.db)
 
-            message: discord.Message = self.__strip_mentions(message)
             await self.__try_store_message(guild_id, message)
             await self.__update_user_tokens(message.author, -tokens_consumed)
 
@@ -316,7 +329,7 @@ class Gork(discord.Client):
                 datetime.now(UTC).isoformat(),
             )
         else:
-            await self.__update_user_tokens(message.author, random.randint(1, 10))
+            await self.__update_user_tokens(message.author, random.randint(1, 3))
             await self.__try_store_message(guild_id, message)
 
     async def __handle_reaction(
@@ -387,6 +400,8 @@ You can earn more tokens by:
 The more recent your last successful message tagging me was, the smaller the fraction of *actual tokens your request consumes* will be subtracted from your account will be.
 For example, the message 'hello i am gork' would normally count as four tokens. If you sent a message 'recently', it could only cost you two!
 The response you receive from gork is not affected at all by your token balance. Whether you receive a response is affected by your token balance.
+
+If you send a message pinging me that says exactly "Tokens PLZ" (not including the ping or surrounding whitespace), I will respond with your token count. 
 
 gork"""
             channel = await user.create_dm()
