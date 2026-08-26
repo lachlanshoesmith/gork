@@ -406,7 +406,7 @@ You can earn more tokens by:
 * Speaking in a channel I can observe without pinging me
     * Note that a user's token count is only instantiated upon their first gork ping. 
 
-The more recent your last successful message tagging me was, the smaller the fraction of *actual tokens your request consumes* will be subtracted from your account will be.
+The more recently you last messaged me, the fewer tokens will be deducted from your account.
 For example, the message 'hello i am gork' would normally count as four tokens. If you sent a message 'recently', it could only cost you two!
 The response you receive from gork is not affected at all by your token balance. Whether you receive a response is affected by your token balance.
 
