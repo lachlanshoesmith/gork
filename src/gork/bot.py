@@ -338,7 +338,7 @@ class Gork(discord.Client):
                 datetime.now(UTC).isoformat(),
             )
         else:
-            await self.__update_user_tokens(message.author, random.randint(1, 3))
+            await self.__update_user_tokens(message.author, 1)
             await self.__try_store_message(guild_id, message)
 
     async def __handle_reaction(
