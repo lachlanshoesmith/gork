@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import random
 import sys
@@ -315,13 +316,23 @@ class Gork(discord.Client):
             await self.__update_user_tokens(message.author, -tokens_consumed)
 
             content = await self.__determine_message(guild_id, tone, message.content)
-            await message.channel.send(
-                content,
-                reference=message,
-                allowed_mentions=discord.AllowedMentions(
-                    users=False, everyone=False, roles=False, replied_user=True
-                ),
+            allowed_mentions = discord.AllowedMentions(
+                users=False, everyone=False, roles=False, replied_user=True
             )
+            if random.random() < 0.1:
+                thinking_msg = await message.channel.send(
+                    "Thinking...",
+                    reference=message,
+                    allowed_mentions=allowed_mentions,
+                )
+                await asyncio.sleep(random.uniform(3, 10))
+                await thinking_msg.edit(content=content)
+            else:
+                await message.channel.send(
+                    content,
+                    reference=message,
+                    allowed_mentions=allowed_mentions,
+                )
             await self.db.set(
                 f"user:{message.author.id}:last_successful_message",
                 datetime.now(UTC).isoformat(),
