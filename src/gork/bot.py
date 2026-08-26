@@ -49,7 +49,7 @@ class Gork(discord.Client):
             msg_id: str = msgs[0].decode("utf-8")
             msg = await self.db.get(f"message:{msg_id}")
             if not msg:
-                msg = await self.__get_random_message(guild_id, tone)
+                return await self.__get_random_message(guild_id, tone)
             msg = msg.decode("utf-8")
             return msg
 
@@ -78,7 +78,7 @@ class Gork(discord.Client):
             c_hash = content_hash(content_str)
             b.hdel(content_to_id_key, [c_hash])
 
-        b.delete(msg_prefix)
+        b.delete([msg_prefix])
         b.srem(guild_msgs_key, [str(message_id)])
 
         for tone in TONES:
@@ -221,6 +221,8 @@ class Gork(discord.Client):
     async def on_message(self, message: discord.Message):
         if message.guild is None:
             return
+        if self.user is None:
+            return
 
         guild_id: int = message.guild.id
 
@@ -315,6 +317,8 @@ class Gork(discord.Client):
     async def __handle_reaction(
         self, event: discord.RawReactionActionEvent, delta: int
     ):
+        if event.guild_id is None:
+            return
         if self.maintenance_mode and not self.__ensure_maintenance_guild(
             event.guild_id
         ):
@@ -325,6 +329,8 @@ class Gork(discord.Client):
         if channel is None:
             channel = await self.fetch_channel(event.channel_id)
 
+        if not isinstance(channel, discord.TextChannel):
+            return
         if not self.__ensure_permissions(channel) and not self.maintenance_mode:
             return
 
@@ -337,6 +343,8 @@ class Gork(discord.Client):
 
         await self.__train(event.guild_id, message.content, tone, delta)
         user = self.get_user(event.user_id)
+        if user is None:
+            return
         await self.__update_user_tokens(user, delta)
 
     async def on_raw_reaction_add(self, event: discord.RawReactionActionEvent):
@@ -346,7 +354,7 @@ class Gork(discord.Client):
         await self.__handle_reaction(event, delta=-1)
 
     async def __get_user_tokens(
-        self, user: discord.Member, message: discord.Message | None = None
+        self, user: discord.User, message: discord.Message | None = None
     ):
         DEFAULT_TOKEN_COUNT = 100
 
@@ -393,7 +401,7 @@ gork"""
 
         return token_count
 
-    async def __update_user_tokens(self, user: discord.Member, delta: int):
+    async def __update_user_tokens(self, user: discord.User, delta: int):
         user_tokens = await self.__get_user_tokens(user)
         if user_tokens is None:
             return None

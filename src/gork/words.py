@@ -54,7 +54,7 @@ async def determine_tone(guild_id: int, message: str, db: Valkey) -> str:
     if max_score == 0:
         return random.choice(list(scores.keys()))
     else:
-        return max(scores, key=scores.get)
+        return max(scores, key=lambda k: scores[k])
 
 
 def is_substantial_word(word: str):
