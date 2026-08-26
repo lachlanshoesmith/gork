@@ -33,11 +33,12 @@ TONES: dict[str, set[str]] = {
 }
 
 WORD_REGEX = re.compile(r"(\w[\w']*\w|\w)")
+TOKEN_REGEX = re.compile(r"[A-Za-z0-9]+(?:'[A-Za-z]+)*")
 
 MAX_LOOKUP_COUNT = 10
 
 
-async def determine_tone(guild_id: int, message: str, db: Valkey):
+async def determine_tone(guild_id: int, message: str, db: Valkey) -> str:
     words = set(get_substantial_words(message)[:MAX_LOOKUP_COUNT])
     scores = {}
     for tone in TONES:
@@ -64,3 +65,8 @@ def is_substantial_word(word: str):
 def get_substantial_words(message: str) -> list[str]:
     substrs = WORD_REGEX.findall(message)
     return [substr.lower() for substr in substrs if is_substantial_word(substr)]
+
+
+def get_token_count(message: str) -> int:
+    tokens = TOKEN_REGEX.findall(message)
+    return len(tokens)

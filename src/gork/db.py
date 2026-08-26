@@ -7,6 +7,7 @@ from glide import (
     RangeByIndex,
     RangeByLex,
     RangeByScore,
+    ConditionalChange,
 )
 from typing import Mapping, Union
 
@@ -27,10 +28,22 @@ class Valkey:
         if self.client is None:
             self.client = await GlideClient.create(self.config)
 
-    async def set(self, key: str, val: str):
+    async def set(self, key: str, val: str, conditional_set: bool = False):
         self.ensure_client()
-        set_result = await self.client.set(key, val)
+        if conditional_set:
+            set_result = await self.client.set(
+                key, val, ConditionalChange.ONLY_IF_DOES_NOT_EXIST
+            )
+        else:
+            set_result = await self.client.set(key, val)
         return set_result
+
+    async def get_or_set(self, key: str, default_val: str):
+        self.ensure_client()
+        get = await self.get(key)
+        if get is None:
+            await self.set(key, default_val)
+        return get
 
     async def lpush(self, key: str, val: list[str] | str):
         self.ensure_client()
@@ -61,7 +74,7 @@ class Valkey:
         vals = await self.client.lrange(key, start, end)
         return vals
 
-    async def get(self, key):
+    async def get(self, key) -> bytes | None:
         self.ensure_client()
         get_result = await self.client.get(key)
         return get_result

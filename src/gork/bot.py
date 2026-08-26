@@ -3,7 +3,8 @@ import sys
 import random
 import hashlib
 from gork.db import Valkey
-from gork.words import get_substantial_words, TONES, determine_tone
+from gork.words import get_substantial_words, TONES, determine_tone, get_token_count
+from datetime import datetime, timezone
 
 
 def content_hash(content: str) -> str:
@@ -47,9 +48,9 @@ class Gork(discord.Client):
 
             msg_id: str = msgs[0].decode("utf-8")
             msg = await self.db.get(f"message:{msg_id}")
-            msg = msg.decode("utf-8")
             if not msg:
                 msg = await self.__get_random_message(guild_id, tone)
+            msg = msg.decode("utf-8")
             return msg
 
     async def __determine_message(
@@ -78,7 +79,6 @@ class Gork(discord.Client):
             b.hdel(content_to_id_key, [c_hash])
 
         b.delete(msg_prefix)
-        # b.delete(f"{msg_prefix}:reactions")
         b.srem(guild_msgs_key, [str(message_id)])
 
         for tone in TONES:
@@ -259,12 +259,44 @@ class Gork(discord.Client):
                 return
 
         if self.user.mentioned_in(message):
+            tokens_consumed = get_token_count(message.content)
+            token_budget = await self.__get_user_tokens(message.author, message)
+            if token_budget is None:
+                return
+
+            time_of_last_successful_message = (
+                await self.__get_time_of_last_successful_message(message.author)
+            )
+
+            if time_of_last_successful_message is None:
+                multiplier = 1
+            else:
+                hours_since_last_successful_message = (
+                    datetime.now(timezone.utc) - time_of_last_successful_message
+                ).total_seconds() / 3600
+
+                if hours_since_last_successful_message < 24:
+                    discount = 0.5 ** (hours_since_last_successful_message / 12)
+                    multiplier = 1 - discount
+                else:
+                    multiplier = 1.0
+
+            tokens_consumed = int(tokens_consumed * multiplier)
+
+            if token_budget - tokens_consumed < 0:
+                await message.channel.send(
+                    f"hello Brokie u have too few tokens ({token_budget}) LOL",
+                    reference=message,
+                )
+                return
+
             tone = await determine_tone(guild_id, message.content, self.db)
 
             message: discord.Message = self.__strip_mentions(message)
             await self.__try_store_message(guild_id, message)
+            await self.__update_user_tokens(message.author, -tokens_consumed)
 
-            content = await self.__determine_message(guild_id, tone, message)
+            content = await self.__determine_message(guild_id, tone, message.content)
             await message.channel.send(
                 content,
                 reference=message,
@@ -272,7 +304,12 @@ class Gork(discord.Client):
                     users=False, everyone=False, roles=False, replied_user=True
                 ),
             )
+            await self.db.set(
+                f"user:{message.author.id}:last_successful_message",
+                datetime.now(timezone.utc).isoformat(),
+            )
         else:
+            await self.__update_user_tokens(message.author, random.randint(1, 10))
             await self.__try_store_message(guild_id, message)
 
     async def __handle_reaction(
@@ -299,9 +336,72 @@ class Gork(discord.Client):
         message = await channel.fetch_message(event.message_id)
 
         await self.__train(event.guild_id, message.content, tone, delta)
+        user = self.get_user(event.user_id)
+        await self.__update_user_tokens(user, delta)
 
     async def on_raw_reaction_add(self, event: discord.RawReactionActionEvent):
         await self.__handle_reaction(event, delta=1)
 
     async def on_raw_reaction_remove(self, event: discord.RawReactionActionEvent):
         await self.__handle_reaction(event, delta=-1)
+
+    async def __get_user_tokens(
+        self, user: discord.Member, message: discord.Message | None = None
+    ):
+        DEFAULT_TOKEN_COUNT = 100
+
+        if message is None:
+            return await self.db.get(f"user:{user.id}:tokens")
+
+        token_count = await self.db.get_or_set(
+            f"user:{user.id}:tokens", DEFAULT_TOKEN_COUNT
+        )
+        if token_count is None:
+            content = f"""Hello there, {user.name}! My name is Gork and I am an intelligent large language model.
+            
+You have been allocated a budget of **{DEFAULT_TOKEN_COUNT}** tokens to use in your future interactions with me.
+
+You can earn more tokens by:
+* Reacting to my messages with certain common emojis
+    * React honestly with what you think makes sense for best results
+    * React dishonestly for worse results (sometimes better)
+* Speaking in a channel I can observe without pinging me
+    * Note that a user's token count is only instantiated upon their first gork ping. 
+
+The more recent your last successful message tagging me was, the smaller the fraction of *actual tokens your request consumes* will be subtracted from your account will be.
+For example, the message 'hello i am gork' would normally count as four tokens. If you sent a message 'recently', it could only cost you two!
+The response you receive from gork is not affected at all by your token balance. Whether you receive a response is affected by your token balance.
+
+gork"""
+            channel = await user.create_dm()
+            await message.channel.send(
+                "Sliding into your DMs",
+                reference=message,
+                allowed_mentions=discord.AllowedMentions(
+                    users=False, everyone=False, roles=False, replied_user=True
+                ),
+            )
+            await channel.send(content)
+            await self.db.set(
+                f"user:{message.author.id}:last_successful_message",
+                datetime.now(timezone.utc).isoformat(),
+            )
+            return None
+
+        return token_count
+
+    async def __update_user_tokens(self, user: discord.Member, delta: int):
+        user_tokens = await self.__get_user_tokens(user)
+        if user_tokens is None:
+            return None
+
+        user_tokens += delta
+        await self.db.set(f"user:{user.id}:tokens", user_tokens)
+        return user_tokens
+
+    async def __get_time_of_last_successful_message(self, user: discord.User):
+        timestamp = await self.db.get(f"user:{user.id}:last_successful_message")
+        if timestamp is not None:
+            timestamp = datetime.fromisoformat(timestamp)
+
+        return timestamp
