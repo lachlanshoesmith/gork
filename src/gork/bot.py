@@ -231,6 +231,10 @@ class Gork(discord.Client):
 
         if self.maintenance_mode and not self.__ensure_maintenance_guild(guild_id):
             return
+
+        # a message in any accessible channel can increase tokens
+        await self.__update_user_tokens(message.author, 1)
+
         if not self.__ensure_permissions(message.channel) and not self.maintenance_mode:
             return
 
@@ -338,7 +342,6 @@ class Gork(discord.Client):
                 datetime.now(UTC).isoformat(),
             )
         else:
-            await self.__update_user_tokens(message.author, 1)
             await self.__try_store_message(guild_id, message)
 
     async def __handle_reaction(
